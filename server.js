@@ -14,6 +14,6 @@ const router = require('./api/User');
 
 app.use('/user',router)
 
-app.listen(4567,() =>{
+app.listen(6566,() =>{
     console.log(" Node server connected")
 })

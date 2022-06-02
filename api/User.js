@@ -4,7 +4,7 @@ const nodemailer = require('nodemailer')
 const bcrypt = require('bcrypt')
 const otp_verification = require('../models/userOTPVerification')
 const app = express()
-
+require("dotenv").config()
 const router = express.Router()
 
 //NodeMailer stuff
@@ -21,20 +21,21 @@ router.post('/signup', async (req, res) => {
             //insert to DB
             const response = await new usermodel(request).save()
                 .then((result) => {
-                    console.log("message will print")
                     sendOTPVerification(result, res)
+                }).catch(err => {
+                    console.log("error  : ", err);
                 })
             return res.status(200).json(response)
-        } else res.status(400).send(' Email already registered ')
+        } else return res.status(400).send(' Email already registered ')
 
     } catch (error) {
-        res.status(401).json({ 'message ': error.message })
+        return res.status(401).json({ 'message ': error.message })
     }
 
 })
 router.post('/signin', async (req, res) => {
     try {
-        let email_check = await usermodel.findOne({ userEmail: req.body.userEmail})
+        let email_check = await usermodel.findOne({ userEmail: req.body.userEmail })
         let email_password = email_check.password
         if (email_check) {
             //this password from request
@@ -49,7 +50,6 @@ router.post('/signin', async (req, res) => {
                     email: email_check.email_id
                 }
                 let token = jwt.sign(payload, "secret")
-                // console.log('payload : ',payload, token)
                 let tokenPayload = {
                     user: email_check._id,
                     token: token
@@ -70,16 +70,16 @@ router.post('/signin', async (req, res) => {
     }
 })
 
-const sendOTPVerification = async (req, res) => {
+const sendOTPVerification = async (result, res) => {
     try {
         let transpoter = nodemailer.createTransport({
-            host: "smtp.gmail.com",
+            host: "smtp.mail.yahoo.com",
+            port: 465,
             auth: {
                 user: process.env.SENDER,
                 pass: process.env.AUTH_PASS
             }
         })
-
         //verify transpoter 
         transpoter.verify((error, success) => {
             if (error) {
@@ -87,29 +87,32 @@ const sendOTPVerification = async (req, res) => {
             }
             else {
                 console.log("ready for a message")
-                console.log(success)
+                console.log(" message ", success)
             }
         })
-        const otp = (Math.floor(1000 + Math.random() * 9000))
+        const otp = toString((Math.floor(1000 + Math.random() * 9000)))
         //mail options 
         const mailoption = {
-            from: process.env.AUTH_EMAIL,
-            to: req.body.email,
+            from: process.env.SENDER,
+            to: result.userEmail,
             subject: "verify your mail",
-            html: '<p> this is your opt ${otp} otp is  going to expires in one hour </p>'
+            html: '<p> this is your otp ${otp} otp is  going to expires in one hour </p>'
         }
-
+        console.log("\n\n check \n\n")
         //hash the OTP 
-        let hashedOTP = await bcrypt.hash(otp, 10);
+        const salt_rounds = 10
+        // otp = parseInt(otp)
+        let hashedOTP = await bcrypt.hash(otp, salt_rounds);
+        console.log("\n\n", result, "\n\n")
         const otpVerification = new otp_verification({
-            userid: __id,
+            userid: result._id,
             otp: hashedOTP,
             createdAt: Date.now(),
             expiresAt: Date.now() + 360000
         })
         await otpVerification.save()
         await transpoter.sendMail(mailoption)
-        res.json({
+        return res.json({
             status: "Pending",
             message: "verification OTP mail send to given address",
             Date: {
@@ -119,11 +122,10 @@ const sendOTPVerification = async (req, res) => {
         })
     }
     catch (error) {
-        res.json({
+        return res.json({
             status: "Failed",
             message: error.message
-        }
-        )
+        })
     }
 }
 
