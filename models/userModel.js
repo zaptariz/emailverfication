@@ -15,7 +15,8 @@ const email_verification = new mongoose.Schema({
         required: true
     },
     verified: {
-        type: Boolean
+        type: Boolean,
+        default: false
     }
 })
 

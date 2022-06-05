@@ -3,13 +3,18 @@ const express = require('express')
 const cors = require('cors')
 const app = express()
 app.use(express.json())
+
 app.use(cors())
+//Db connection options
 const dbconnection = () => {
     mongoose.connect('mongodb://localhost/emailverification')
     console.log("db connected")
 }
+
+// DB connnection call
 dbconnection()
 
+//Routerr called
 const router = require('./api/User');
 
 app.use('/user',router)
