@@ -21,7 +21,7 @@ const router = express.Router()
  * @returns {function}
  *********************************/
 
-router.post('/signup', async (req, res) => {
+const signup = async (req, res) => {
     try {
         const request = req.body
         //Check the user is exists
@@ -42,8 +42,7 @@ router.post('/signup', async (req, res) => {
     } catch (error) {
         return res.status(401).json({ 'message ': error.message })
     }
-
-})
+}
 
 /*********************************
  * User signup.
@@ -54,7 +53,7 @@ router.post('/signup', async (req, res) => {
  * @returns {function}
  *********************************/
 
-router.post('/signin', async (req, res) => {
+const signin = async (req, res) => {
     try {
         //Checking for exsiting email
         let email_check = await usermodel.findOne({ userEmail: req.body.userEmail })
@@ -91,7 +90,7 @@ router.post('/signin', async (req, res) => {
     catch (error) {
         return res.status(404).send(error.message)
     }
-})
+}
 
 /*********************************
  * OTP verification.
@@ -103,7 +102,7 @@ router.post('/signin', async (req, res) => {
  * 
  *********************************/
 
-router.get('/verifyotp', async (req, res) => {
+const verifyOtp = async (req, res) => {
     try {
         const { userId, otp } = req.body
         if (!userId || !otp) {
@@ -135,14 +134,17 @@ router.get('/verifyotp', async (req, res) => {
                         // Remove the OTP records against verified users
                         await otp_verification.deleteMany({ userId })
                         //Find the user details for sending success mail
-                        const find_mail = await usermodel.find({ userId })
+                        const find_mail = await usermodel.findOne({_id: userId})
+
+                        console.log(' mailer : ',find_mail.userEmail)
                         const mailoption = {
                             from: process.env.SENDER,
-                            to: find_mail[0].userEmail,
+                            to: find_mail.userEmail,
                             subject: "OTP verified Successful",
-                            html: `welcome ${find_mail[0].userName} your mailId ${find_mail[0].userEmail} verified successfully `
+                            html: `<p>welcome</p> <h2> ${find_mail.userName} </h2>
+                                   <p>your mailId  ${find_mail.userEmail} verified successfully `
                         }
-                        //Mailer
+                        // Mailer
                         transporter.sendMail(mailoption, (err, result) => {
                             if (err) {
                                 return res.status(401).json('Opps error occured')
@@ -163,10 +165,10 @@ router.get('/verifyotp', async (req, res) => {
         console.log(error.message)
         return res.send({ status: " failed ", message: error.message })
     }
-})
+}
 
 // OTP resend 
-router.post('/resendotp', async (req, res) => {
+const resentOtp = async (req, res) => {
     try {
         let { userId, userEmail } = req.body
         if (!userId || !userEmail) {
@@ -179,18 +181,25 @@ router.post('/resendotp', async (req, res) => {
             const UserID = await usermodel.findOne({ userId })
             if (!UserID.verified == true) {
                 await usermodel.findOne({ userId })
-                .then(result => {
-                    sendOTPVerification(result)
-                    console.log("\n\n\n result  : ", result)
-                    return res.send({ " response ": " otp successfully resent " })
-                }).catch(error => {
-                    console.log(error)
-                })
-            }else return res.status(401).send({message: "emailId already verified"})
+                    .then(result => {
+                        sendOTPVerification(result)
+                        console.log("\n\n\n result  : ", result)
+                        return res.send({ " response ": " otp successfully resent " })
+                    }).catch(error => {
+                        console.log(error)
+                    })
+            } else return res.status(401).send({ message: "emailId already verified" })
         }
     }
     catch (error) {
         return res.send({ " err message  ": error.message })
     }
-})
-module.exports = router
+}
+
+module.exports = {
+    signup,
+    verifyOtp,
+    resentOtp,
+    signin,
+
+}

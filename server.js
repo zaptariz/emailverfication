@@ -15,7 +15,7 @@ const dbconnection = () => {
 dbconnection()
 
 //Routerr called
-const router = require('./api/User');
+const router = require('./routes/emailVerificationAPI');
 
 app.use('/user',router)
 
