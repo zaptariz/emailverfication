@@ -1,14 +1,12 @@
-const express = require('express')
 const usermodel = require('../models/userModel')
-const nodemailer = require('nodemailer')
 const transporter = require('../helper/nodeMailer')
 const bcrypt = require('bcrypt')
 const otp_verification = require('../models/userOTPVerification')
 const sendOTPVerification = require("../helper/otpSender")
 const jwt = require("jsonwebtoken")
 const { usertoken } = require('../models/JwtToken')
+const { findOne, deleteMany } = require('../models/userModel')
 require("dotenv").config()
-const router = express.Router()
 
 /*********************************
  * User signup.
@@ -29,7 +27,6 @@ const signup = async (req, res) => {
         if (!email_check) {
             req.body.password = await bcrypt.hash(req.body.password, 10)
             //insert to DB
-            console.log()
             await usermodel(request).save()
                 .then((result) => {
                     sendOTPVerification(result)
@@ -134,15 +131,15 @@ const verifyOtp = async (req, res) => {
                         // Remove the OTP records against verified users
                         await otp_verification.deleteMany({ userId })
                         //Find the user details for sending success mail
-                        const find_mail = await usermodel.findOne({_id: userId})
+                        const find_mail = await usermodel.findOne({ _id: userId })
 
-                        console.log(' mailer : ',find_mail.userEmail)
+                        console.log(' mailer : ', find_mail.userEmail)
                         const mailoption = {
                             from: process.env.SENDER,
                             to: find_mail.userEmail,
                             subject: "OTP verified Successful",
                             html: `<p>welcome</p> <h2> ${find_mail.userName} </h2>
-                                   <p>your mailId  ${find_mail.userEmail} verified successfully `
+                                   <p>your mailId  ${find_mail.userEmail} verified successfully </p> `
                         }
                         // Mailer
                         transporter.sendMail(mailoption, (err, result) => {
@@ -177,10 +174,12 @@ const resentOtp = async (req, res) => {
         else {
             //to delete the old OTP in record
             await otp_verification.deleteOne({ userId: userId })
+            console.log(userId)
             //Find the User Details for OTP resend 
-            const UserID = await usermodel.findOne({ userId })
+            const UserID = await usermodel.findOne({ _id: userId })
+            console.log(UserID)
             if (!UserID.verified == true) {
-                await usermodel.findOne({ userId })
+                await usermodel.findOne({ _id: userId })
                     .then(result => {
                         sendOTPVerification(result)
                         console.log("\n\n\n result  : ", result)
@@ -196,10 +195,57 @@ const resentOtp = async (req, res) => {
     }
 }
 
+const deleteUser = async (req, res) => {
+    try {
+        console.log('request : ', req.body)
+        console.log(' userEmail:', req.body.userEmail)
+        console.log(' userEmail:', req.body.userId)
+        const user = await usermodel.findOne({ userEmail: req.body.userEmail })
+        if (!user) {
+            console.log(" we dont have any account with this mail-ID , ")
+            return res.status(200).send({ error_response: 'we dont have any account with this mail-ID' })
+        }
+        if ((user._id == req.body.userId) && (user.userEmail == req.body.userEmail)) {
+            await usermodel.deleteMany({ _id: req.body.userId, userEmail: req.body.userEmail })
+            const mailoption = {
+                from: process.env.SENDER,
+                to: user.userEmail,
+                subject: "Account deletion confirmation",
+                html: `<h1>welcome</h1> 
+                       <h3> Hi Mr/Ms.${user.userName} </h3>
+                       <p> your account is deleted, ${user.userEmail} it is no longer available with neosoft</p> `
+            }
+            // Mailer
+            transporter.sendMail(mailoption, (err, result) => {
+                if (err) {
+                    return res.status(401).json('Opps error occured')
+                } else {
+                    return res.status(200).json(result)
+                }
+            })
+            res.status(200).send({
+                response: 'credential matched, account was deleted'
+            })
+        }
+        else {
+            res.status(401).send({
+                response: 'check your emailId and userID, both does not matched'
+            })
+        }
+    } catch (error) {
+        console.log('error  : ', error.message)
+        return res.status(401).send({
+            status: "failed",
+            message: error.message
+        })
+    }
+}
+
 module.exports = {
     signup,
     verifyOtp,
     resentOtp,
+    deleteUser,
     signin,
 
 }

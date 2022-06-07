@@ -6,6 +6,7 @@ const router = express.Router()
 router.post('/signup',api.signup)
 router.post('/verifyotp',api.verifyOtp)
 router.post('/resendotp',api.resentOtp)
-router.post('/signup',api.signin)
+router.post('/signin',api.signin)
+router.delete('/deleteuser',api.deleteUser)
 
 module.exports = router
